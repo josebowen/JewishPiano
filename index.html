@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jewish Piano Archive - Restored Complete Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e293b;
+            --secondary: #b45309;
+            --accent: #0f172a;
+            --light: #f8fafc;
+            --border: #cbd5e1;
+        }
+
+        body { font-family: 'Lato', sans-serif; background: var(--light); color: var(--accent); margin: 0; padding: 0; line-height: 1.6; }
+
+        /* HEADER */
+        header { background: var(--primary); color: white; padding: 2.5rem 1rem; text-align: center; border-bottom: 5px solid var(--secondary); }
+        h1 { font-family: 'Playfair Display', serif; font-size: 2.5rem; margin: 0; }
+        .subtitle { font-size: 1rem; opacity: 0.85; margin-top: 0.5rem; }
+
+        /* NAV BUTTONS */
+        .view-switcher { background: white; padding: 1rem; display: flex; justify-content: center; gap: 1rem; position: sticky; top: 0; z-index: 200; border-bottom: 1px solid var(--border); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .nav-btn { padding: 0.6rem 1.2rem; border: 2px solid var(--primary); background: transparent; color: var(--primary); font-weight: bold; cursor: pointer; border-radius: 4px; transition: 0.2s; }
+        .nav-btn.active { background: var(--primary); color: white; }
+        .nav-btn:hover { background: var(--secondary); color: white; border-color: var(--secondary); }
+
+        /* SECTIONS */
+        .view-section { display: none; max-width: 1400px; margin: 2rem auto; padding: 0 1rem; }
+        .view-section.active { display: block; }
+
+        /* MAP VIEW */
+        #map-container { text-align: center; background: white; padding: 2rem; border-radius: 12px; border: 1px solid var(--border); }
+        .simple-map { width: 100%; max-width: 900px; margin: 0 auto; fill: white; stroke: #333; stroke-width: 1; stroke-linejoin: round; }
+        .region { cursor: pointer; transition: fill 0.2s, stroke-width 0.2s; fill: #f1f5f9; stroke: #64748b; }
+        .region:hover { fill: var(--secondary); stroke: white; }
+        .region.active { fill: var(--primary); stroke: white; }
+        .region-label { font-size: 1.4rem; font-weight: bold; margin-bottom: 1rem; color: var(--primary); display: block; }
+        .map-text { pointer-events: none; font-size: 14px; fill: #333; font-weight: bold; text-anchor: middle; }
+
+        /* TIMELINE VIEW */
+        #timeline-container { background: white; padding: 3rem 1rem; border-radius: 12px; border: 1px solid var(--border); position: relative; min-height: 800px; overflow-x: auto; }
+        .timeline-wrapper { min-width: 1200px; position: relative; height: auto; padding-top: 20px; padding-bottom: 50px; }
+        .year-axis { position: sticky; top: 0; width: 100%; height: 30px; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; background: white; z-index: 10; }
+        .year-mark { position: absolute; transform: translateX(-50%); font-size: 0.8rem; color: #64748b; top: 5px; }
+        .timeline-bar { position: absolute; height: 16px; background: var(--secondary); border-radius: 4px; opacity: 0.8; transition: 0.2s; cursor: pointer; display: flex; align-items: center; }
+        .timeline-bar:hover { opacity: 1; filter: brightness(1.2); z-index: 5; }
+        .timeline-bar-label { font-size: 0.75rem; font-weight: 700; white-space: nowrap; color: var(--primary); margin-left: 8px; position: absolute; left: 100%; pointer-events: none; }
+        /* Alternating label position to prevent overlap logic (simple version) */
+        .timeline-bar:nth-child(even) .timeline-bar-label { left: auto; right: 100%; margin-left: 0; margin-right: 8px; text-align: right; }
+
+        /* LIST VIEW */
+        .search-bar { margin-bottom: 2rem; width: 100%; max-width: 600px; padding: 0.8rem; border: 2px solid var(--border); border-radius: 6px; font-size: 1rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 2rem; }
+        .card { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+        .card-header { padding: 1.2rem; background: #f1f5f9; border-bottom: 1px solid var(--border); }
+        .card-name { font-family: 'Playfair Display', serif; font-size: 1.4rem; margin: 0; }
+        .card-dates { font-size: 0.85rem; font-weight: bold; color: #64748b; }
+        .card-body { padding: 1.2rem; flex: 1; }
+        .card-bio { font-size: 0.9rem; color: #475569; margin-bottom: 1rem; font-style: italic; }
+        .work-item { padding: 0.6rem 0; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+        .work-title { font-weight: bold; color: var(--primary); }
+        .work-btn { font-size: 0.75rem; background: var(--primary); color: white; padding: 3px 8px; text-decoration: none; border-radius: 4px; }
+        .work-btn:hover { background: var(--secondary); }
+
+        footer { text-align: center; padding: 3rem; background: var(--primary); color: #94a3b8; font-size: 0.9rem; margin-top: 4rem; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>The Jewish Piano Archive</h1>
+    <div class="subtitle">Restored & Complete Edition &bull; Accurate Links &bull; Interactive Map</div>
+</header>
+
+<div class="view-switcher">
+    <button class="nav-btn active" onclick="switchView('list', this)">Alphabetical List</button>
+    <button class="nav-btn" onclick="switchView('timeline', this)">Historical Timeline</button>
+    <button class="nav-btn" onclick="switchView('map', this)">Map by Region</button>
+</div>
+
+<!-- LIST VIEW -->
+<section id="view-list" class="view-section active">
+    <input type="text" class="search-bar" id="searchInput" placeholder="Search composers or works..." oninput="filterList()">
+    <div class="grid" id="listGrid"></div>
+</section>
+
+<!-- TIMELINE VIEW -->
+<section id="view-timeline" class="view-section">
+    <div id="timeline-container">
+        <div class="timeline-wrapper" id="timelineWrapper">
+            <div class="year-axis" id="yearAxis"></div>
+            <!-- Bars injected here -->
+        </div>
+    </div>
+</section>
+
+<!-- MAP VIEW -->
+<section id="view-map" class="view-section">
+    <div id="map-container">
+        <span class="region-label" id="regionName">Select a Region</span>
+        <!-- Simplified Line Map using SVG Paths -->
+        <svg class="simple-map" viewBox="0 0 1000 500">
+             <!-- North America -->
+             <path class="region" onclick="filterByCountry('USA')" title="USA" d="M50,150 L250,150 L280,300 L50,300 Z" />
+             <text x="150" y="225" class="map-text">USA</text>
+
+             <!-- Scandinavia -->
+             <path class="region" onclick="filterByRegion(['Denmark', 'Sweden'])" title="Scandinavia" d="M480,50 L550,50 L580,150 L500,150 Z" />
+             <text x="530" y="100" class="map-text">Scandinavia</text>
+
+             <!-- UK -->
+             <path class="region" onclick="filterByCountry('England')" title="UK" d="M380,120 L440,120 L440,180 L380,180 Z" />
+             <text x="410" y="150" class="map-text">UK</text>
+
+             <!-- France -->
+             <path class="region" onclick="filterByCountry('France')" title="France" d="M400,200 L480,200 L480,280 L400,280 Z" />
+             <text x="440" y="240" class="map-text">France</text>
+
+             <!-- Central Europe (Germany/Austria/Misc) -->
+             <path class="region" onclick="filterByRegion(['Germany', 'Austria', 'Misc'])" title="Central Europe" d="M485,160 L580,160 L580,280 L485,280 Z" />
+             <text x="532" y="220" class="map-text">Central Europe</text>
+
+             <!-- Poland -->
+             <path class="region" onclick="filterByCountry('Poland')" title="Poland" d="M585,160 L650,160 L650,220 L585,220 Z" />
+             <text x="618" y="190" class="map-text">Poland</text>
+
+             <!-- Russia -->
+             <path class="region" onclick="filterByCountry('Russia')" title="Russia" d="M655,80 L950,80 L950,300 L655,300 Z" />
+             <text x="800" y="200" class="map-text">Russia</text>
+        </svg>
+        <div class="grid" id="mapGrid" style="margin-top:2rem"></div>
+    </div>
+</section>
+
+<footer>
+    <p>Data aggregates from IMSLP and SheetMusicPlus. Final Restored Version 2026.</p>
+</footer>
+
+<script>
+    const composers = [{"name": "Aaron Avshalomov", "birth": 1894, "death": 1965, "country": "Russia", "bio": "Russian-born; lived in China for decades, blending Jewish and Oriental styles.", "works": [{"title": "General Work List", "key": "N/A", "dur": "N/A", "link": "https://imslp.org/wiki/Category:Avshalomov%2C_Aaron"}]}, {"name": "Aaron Copland", "birth": 1900, "death": 1990, "country": "USA", "bio": "The 'Dean of American Composers,' born to Lithuanian Jewish parents in Brooklyn.", "works": [{"title": "Piano Variations", "key": "Modern", "dur": "11 min", "link": "https://www.sheetmusicplus.com/search?Ntt=Aaron+Copland+Piano+Variations"}, {"title": "Piano Fantasy", "key": "Modern", "dur": "30 min", "link": "https://www.sheetmusicplus.com/search?Ntt=Aaron+Copland+Piano+Fantasy"}]}, {"name": "Alexander Krein", "birth": 1883, "death": 1951, "country": "Russia", "bio": "Member of the Jewish National School. Late-Scriabinesque style.", "works": [{"title": "Dance Suite, Op. 44", "key": "Various", "dur": "12 min", "link": "https://imslp.org/wiki/Dance_Suite%2C_Op.44_(Krein%2C_Aleksandr)"}, {"title": "Piano Sonata, Op. 34", "key": "Modern", "dur": "19 min", "link": "https://imslp.org/wiki/Piano_Sonata,_Op.34_(Krein,_Aleksandr)"}, {"title": "4 Morceaux, Op. 7", "key": "Various", "dur": "10 min", "link": "https://imslp.org/wiki/4_Morceaux%2C_Op.7_(Krein%2C_Aleksandr)"}]}, {"name": "Alexandre Tansman", "birth": 1897, "death": 1986, "country": "Poland", "bio": "Neoclassical composer who lived in Paris. His later works explore his Jewish heritage deeply.", "works": [{"title": "20 Pi\u00e8ces faciles", "key": "Folk", "dur": "15 min", "link": "https://imslp.org/wiki/20_Pi%C3%A8ces_faciles_sur_des_m%C3%A9lodies_populaires_polonaises_(Tansman%2C_Alexandre)"}, {"title": "Sonatine transatlantique", "key": "Jazz", "dur": "8 min", "link": "https://imslp.org/wiki/Sonatine_transatlantique_(Tansman%2C_Alexandre)"}]}, {"name": "Anton Rubinstein", "birth": 1829, "death": 1894, "country": "Russia", "bio": "Founder of the St. Petersburg Conservatory. A virtuoso pianist comparable to Liszt.", "works": [{"title": "Melody in F, Op. 3 No. 1", "key": "F major", "dur": "4 min", "link": "https://imslp.org/wiki/2_Melodies%2C_Op.3_(Rubinstein%2C_Anton)"}, {"title": "Kamenniy-ostrov, Op. 10", "key": "Cycle", "dur": "Var", "link": "https://imslp.org/wiki/Kamenniy-ostrov%2C_Op.10_(Rubinstein%2C_Anton)"}]}, {"name": "Arnold Mendelssohn", "birth": 1855, "death": 1933, "country": "Germany", "bio": "Cousin of Felix; known for choral and piano music.", "works": [{"title": "Piano Sonata, Op. 28", "key": "Unknown", "dur": "20 min", "link": "https://imslp.org/wiki/Piano_Sonata,_Op.28_(Mendelssohn,_Arnold)"}]}, {"name": "Arnold Schoenberg", "birth": 1874, "death": 1951, "country": "Austria", "bio": "Pioneer of atonality and twelve-tone technique.", "works": [{"title": "3 Klavierst\u00fccke, Op. 11", "key": "Atonal", "dur": "14 min", "link": "https://imslp.org/wiki/3_Klavierst%C3%BCcke,_Op.11_(Schoenberg,_Arnold)"}, {"title": "6 Little Piano Pieces, Op. 19", "key": "Atonal", "dur": "5 min", "link": "https://imslp.org/wiki/6_Little_Piano_Pieces,_Op.19_(Schoenberg,_Arnold)"}]}, {"name": "Charles-Valentin Alkan", "birth": 1813, "death": 1888, "country": "France", "bio": "A strict observer of the Jewish faith and neighbor of Chopin. His music is notoriously difficult.", "works": [{"title": "Complete Works List", "key": "Various", "dur": "N/A", "link": "https://imslp.org/wiki/Category:Alkan,_Charles-Valentin"}, {"title": "Le festin d'\u00c9sope, Op. 39 No. 12", "key": "E minor", "dur": "10 min", "link": "https://imslp.org/wiki/12_Etudes_in_All_the_Minor_Keys%2C_Op.39_(Alkan%2C_Charles-Valentin)"}, {"title": "Grande Sonate 'Les Quatre \u00c2ges'", "key": "D Major", "dur": "40 min", "link": "https://imslp.org/wiki/Grande_sonate_%27Les_quatre_%C3%A2ges%27,_Op.33_(Alkan,_Charles-Valentin)"}]}, {"name": "Darius Milhaud", "birth": 1892, "death": 1974, "country": "France", "bio": "Member of 'Les Six.' Proudly Jewish, he often integrated Hebrew themes into his polytonal style.", "works": [{"title": "Saudades do Brasil, Op. 67", "key": "Polytonal", "dur": "22 min", "link": "https://imslp.org/wiki/Saudades_do_Brasil%2C_Op.67_(Milhaud%2C_Darius)"}, {"title": "Le Cand\u00e9labre \u00e0 sept branches, Op. 315", "key": "Cycle", "dur": "10 min", "link": "https://imslp.org/wiki/Le_Cand%C3%A9labre_%C3%A0_sept_branches,_Op.315_(Milhaud,_Darius)"}]}, {"name": "Eduard Franck", "birth": 1817, "death": 1893, "country": "Germany", "bio": "Student of Mendelssohn; taught at major conservatories.", "works": [{"title": "Piano Sonata, Op. 42", "key": "Unknown", "dur": "20 min", "link": "https://imslp.org/wiki/Piano_Sonata,_Op.42_(Franck,_Eduard)"}, {"title": "6 Klavierst\u00fccke, Op. 1", "key": "Various", "dur": "12 min", "link": "https://imslp.org/wiki/6_Klavierst%C3%BCcke,_Op.1_(Franck,_Eduard)"}]}, {"name": "Erich Wolfgang Korngold", "birth": 1897, "death": 1957, "country": "Austria", "bio": "Child prodigy and Hollywood legend. His piano music is romantic and virtuosic.", "works": [{"title": "Piano Sonata No. 2, Op. 2", "key": "E major", "dur": "25 min", "link": "https://imslp.org/wiki/Piano_Sonata_No.2,_Op.2_(Korngold,_Erich_Wolfgang)"}]}, {"name": "Erik \u00c5kerberg", "birth": 1860, "death": 1938, "country": "Sweden", "bio": "Swedish composer and synagogue organist (Non-Jewish, but active in the community).", "works": [{"title": "Saknad (Regret)", "key": "Unknown", "dur": "4 min", "link": "https://levandemusikarv.se/downloadMedia.php?m=1026&f=Akerberg_Erik-Saknad-(pno)-(SMH-ed)-(SMH-M1026).pdf"}]}, {"name": "Ernest Bloch", "birth": 1880, "death": 1959, "country": "Misc", "bio": "Swiss-American composer of Jewish descent; known for Jewish-themed works.", "works": [{"title": "Poems of the Sea", "key": "Various", "dur": "15 min", "link": "https://imslp.org/wiki/Poems_of_the_Sea_(Bloch,_Ernest)"}]}, {"name": "Erv\u00edn Schulhoff", "birth": 1894, "death": 1942, "country": "Austria", "bio": "Czech-Jewish avant-garde pioneer who integrated jazz into classical forms.", "works": [{"title": "5 \u00c9tudes de jazz, Op. 58", "key": "Various", "dur": "10 min", "link": "https://imslp.org/wiki/5_%C3%89tudes_de_jazz,_Op.58_(Schulhoff,_Erwin)"}, {"title": "Suite Dansante en Jazz", "key": "Jazz", "dur": "12 min", "link": "https://imslp.org/wiki/Suite_dansante_en_jazz,_WV_98_(Schulhoff,_Erwin)"}]}, {"name": "Fanny Hensel", "birth": 1805, "death": 1847, "country": "Germany", "bio": "Prolific composer and pianist whose works were often unpublished during her lifetime.", "works": [{"title": "Das Jahr (The Year)", "key": "Cycle", "dur": "50 min", "link": "https://imslp.org/wiki/Das_Jahr_(Hensel,_Fanny)"}, {"title": "Piano Sonata in G minor", "key": "G minor", "dur": "15 min", "link": "https://imslp.org/wiki/Piano_Sonata_in_G_minor_(Hensel,_Fanny)"}]}, {"name": "Felix Mendelssohn", "birth": 1809, "death": 1847, "country": "Germany", "bio": "A central figure of the early Romantic era. Revived the music of Bach.", "works": [{"title": "Variations s\u00e9rieuses, Op. 54", "key": "D minor", "dur": "11 min", "link": "https://imslp.org/wiki/Variations_s%C3%A9rieuses,_Op.54_(Mendelssohn,_Felix)"}, {"title": "Rondo Capriccioso, Op. 14", "key": "E major", "dur": "6 min", "link": "https://imslp.org/wiki/Rondo_capriccioso,_Op.14_(Mendelssohn,_Felix)"}, {"title": "Songs Without Words (Lieder ohne Worte)", "key": "Various", "dur": "Collection", "link": "https://imslp.org/wiki/Lieder_ohne_Worte_(Mendelssohn,_Felix)"}]}, {"name": "Ferdinand Hiller", "birth": 1811, "death": 1885, "country": "Germany", "bio": "Friend of Schumann and Chopin; longtime conductor in Cologne.", "works": [{"title": "Piano Sonata No. 2, Op. 59", "key": "Ab Major", "dur": "20 min", "link": "https://imslp.org/wiki/Piano_Sonata_No.2,_Op.59_(Hiller,_Ferdinand)"}, {"title": "Zur Guitarre, Op. 97", "key": "E major", "dur": "4 min", "link": "https://imslp.org/wiki/Zur_Guitarre,_Op.97_(Hiller,_Ferdinand)"}]}, {"name": "Friedrich Gernsheim", "birth": 1839, "death": 1916, "country": "Germany", "bio": "Friend of Brahms; a key figure in German Romanticism.", "works": [{"title": "Piano Sonata No. 1, Op. 9", "key": "D minor", "dur": "22 min", "link": "https://imslp.org/wiki/Piano_Sonata_No.1,_Op.9_(Gernsheim,_Friedrich)"}, {"title": "Fantasie, Op. 27", "key": "Eb Major", "dur": "10 min", "link": "https://imslp.org/wiki/Fantasie,_Op.27_(Gernsheim,_Friedrich)"}]}, {"name": "Fromental Hal\u00e9vy", "birth": 1799, "death": 1862, "country": "France", "bio": "Famous for the opera 'La Juive'.", "works": [{"title": "Caprice sur La Juive", "key": "Unknown", "dur": "10 min", "link": "https://imslp.org/wiki/Caprice_sur_La_Juive_(Hal%C3%A9vy,_Fromental)"}]}, {"name": "George Gershwin", "birth": 1898, "death": 1937, "country": "USA", "bio": "The quintessential American Jewish composer who fused jazz and classical forms.", "works": [{"title": "Three Preludes", "key": "Various", "dur": "6 min", "link": "https://imslp.org/wiki/3_Preludes_(Gershwin%2C_George)"}, {"title": "Rhapsody in Blue (Solo)", "key": "Bb Major", "dur": "16 min", "link": "https://imslp.org/wiki/Rhapsody_in_Blue_(Gershwin%2C_George)"}]}, {"name": "Giacomo Meyerbeer", "birth": 1791, "death": 1864, "country": "Germany", "bio": "Primarily known for grand operas; also wrote some piano works.", "works": [{"title": "Marche aux flambeaux", "key": "Bb major", "dur": "6 min", "link": "https://imslp.org/wiki/Marche_aux_flambeaux_(Meyerbeer,_Giacomo)"}, {"title": "Le proph\u00e8te (Arrangement)", "key": "Unknown", "dur": "5 min", "link": "https://imslp.org/wiki/Le_proph%C3%A8te_(Meyerbeer,_Giacomo)"}]}, {"name": "Ignaz Br\u00fcll", "birth": 1846, "death": 1907, "country": "Austria", "bio": "Austrian composer and pianist; a close friend of Johannes Brahms.", "works": [{"title": "Piano Sonata, Op. 41", "key": "Bb Major", "dur": "20 min", "link": "https://imslp.org/wiki/Piano_Sonata,_Op.41_(Br%C3%BCll,_Ignaz)"}, {"title": "3 Klavierst\u00fccke, Op. 32", "key": "Various", "dur": "12 min", "link": "https://imslp.org/wiki/3_Klavierst%C3%BCcke,_Op.32_(Br%C3%BCll,_Ignaz)"}]}, {"name": "Ignaz Friedman", "birth": 1882, "death": 1948, "country": "Poland", "bio": "Legendary Chopin interpreter. His own works are charming salon miniatures.", "works": [{"title": "4 Mazurkas, Op. 8", "key": "Various", "dur": "12 min", "link": "https://imslp.org/wiki/4_Mazurkas,_Op.8_(Friedman,_Ignaz)"}, {"title": "Passacaglia, Op. 44", "key": "Various", "dur": "15 min", "link": "https://imslp.org/wiki/Passacaglia%2C_Op.44_(Friedman%2C_Ignaz)"}]}, {"name": "Ignaz Moscheles", "birth": 1794, "death": 1870, "country": "Austria", "bio": "Bohemian-born virtuoso; teacher of Mendelssohn and bridge to the Romantic style.", "works": [{"title": "Piano Sonata, Op. 49", "key": "E Major", "dur": "22 min", "link": "https://imslp.org/wiki/Piano_Sonata,_Op.49_(Moscheles,_Ignaz)"}, {"title": "Characteristic Studies, Op. 70", "key": "Various", "dur": "20 min", "link": "https://imslp.org/wiki/Characteristic_Studies,_Op.70_(Moscheles,_Ignaz)"}]}, {"name": "Jacques Offenbach", "birth": 1819, "death": 1880, "country": "France", "bio": "Best known for operettas, but wrote salon piano music.", "works": [{"title": "Valse", "key": "Unknown", "dur": "5 min", "link": "https://imslp.org/wiki/Valse_(Offenbach,_Jacques)"}]}, {"name": "Joel Engel", "birth": 1868, "death": 1927, "country": "Russia", "bio": "Pioneer of the Jewish folk music collection movement.", "works": [{"title": "5 Klavierst\u00fccke, Op. 19", "key": "Various", "dur": "12 min", "link": "https://imslp.org/wiki/5_Klavierst%C3%BCcke,_Op.19_(Engel,_Joel)"}]}, {"name": "John Barnett", "birth": 1802, "death": 1890, "country": "England", "bio": "English composer of Jewish descent; known for operas and instrumental music.", "works": [{"title": "Piano Sonata in G minor, Op. 3", "key": "G minor", "dur": "18 min", "link": "https://imslp.org/wiki/Piano_Sonata_in_G_minor,_Op.3_(Barnett,_John)"}]}, {"name": "Joseph Achron", "birth": 1886, "death": 1943, "country": "Russia", "bio": "Violin prodigy and composer who dedicated his life to creating a 'Hebrew Art Music.'", "works": [{"title": "Symphonic Variations (Palestinian Theme), Op. 39", "key": "Modal", "dur": "25 min", "link": "https://imslp.org/wiki/Symphonic_Variations_and_Sonata_on_a_Palestinian_Theme%2C_Op.39_(Achron%2C_Joseph)"}, {"title": "Stimmungen, Op. 32", "key": "Various", "dur": "8 min", "link": "https://imslp.org/wiki/Stimmungen,_Op.32_(Achron,_Joseph)"}]}, {"name": "Joseph Sulzer", "birth": 1850, "death": 1926, "country": "Austria", "bio": "Son of the famous cantor Salomon Sulzer; known for synagogue music.", "works": [{"title": "Kol Nidrei (Arrangement)", "key": "Unknown", "dur": "6 min", "link": "https://imslp.org/wiki/Kol_Nidrei_(Sulzer,_Joseph)"}]}, {"name": "Karl Goldmark", "birth": 1830, "death": 1915, "country": "Misc", "bio": "Hungarian composer of Jewish descent; known for operas and Rustic Wedding Symphony.", "works": [{"title": "3 Piano Pieces, Op. 12", "key": "Various", "dur": "10 min", "link": "https://imslp.org/wiki/3_Piano_Pieces,_Op.12_(Goldmark,_Carl)"}, {"title": "Sturm und Drang, Op. 27", "key": "Various", "dur": "12 min", "link": "https://imslp.org/wiki/List_of_works_by_Carl_Goldmark"}]}, {"name": "Karol Rathaus", "birth": 1895, "death": 1954, "country": "Poland", "bio": "Emigrated to the US; known for his expressionist style.", "works": [{"title": "Piano Sonata No. 1, Op. 2", "key": "Unknown", "dur": "18 min", "link": "https://imslp.org/wiki/Piano_Sonata_No.1,_Op.2_(Rathaus,_Karol)"}]}, {"name": "Leo Ornstein", "birth": 1895, "death": 2002, "country": "USA", "bio": "Ukrainian-American radical futurist. Known for tone clusters and raw energy.", "works": [{"title": "Suicide in an Airplane", "key": "Ostinato", "dur": "4 min", "link": "https://imslp.org/wiki/Suicide_in_an_Airplane_(Ornstein%2C_Leo)"}, {"title": "Danse Sauvage", "key": "Modern", "dur": "3 min", "link": "https://imslp.org/wiki/Danse_sauvage_(Ornstein%2C_Leo)"}]}, {"name": "Leopold Godowsky", "birth": 1870, "death": 1938, "country": "Poland", "bio": "The 'Pianist's Pianist.' Known for complex contrapuntal arrangements.", "works": [{"title": "Java Suite", "key": "Various", "dur": "50 min", "link": "https://imslp.org/wiki/Java_Suite_(Godowsky,_Leopold)"}, {"title": "Passacaglia", "key": "B minor", "dur": "18 min", "link": "https://imslp.org/wiki/Passacaglia_(Godowsky,_Leopold)"}]}, {"name": "Louis Moreau Gottschalk", "birth": 1829, "death": 1869, "country": "USA", "bio": "American virtuoso who incorporated Creole and Latin elements.", "works": [{"title": "Bamboula, Op. 2", "key": "Db Major", "dur": "8 min", "link": "https://imslp.org/wiki/Bamboula,_Op.2_(Gottschalk,_Louis_Moreau)"}]}, {"name": "Mario Castelnuovo-Tedesco", "birth": 1895, "death": 1968, "country": "Misc", "bio": "Italian-Jewish composer who fled Fascism for Hollywood. Prolific writer for piano and guitar.", "works": [{"title": "Le danze del Re David, Op. 37", "key": "Suite", "dur": "20 min", "link": "https://imslp.org/wiki/Le_danze_del_Re_David%2C_Op.37_(Castelnuovo-Tedesco%2C_Mario)"}, {"title": "Cipressi (Cypresses), Op. 17", "key": "Impressionist", "dur": "8 min", "link": "https://imslp.org/wiki/Cipressi%2C_Op.17_(Castelnuovo-Tedesco%2C_Mario)"}]}, {"name": "Mikhail Gnesin", "birth": 1883, "death": 1957, "country": "Russia", "bio": "Incorporated Jewish folk elements; often called the 'Jewish Glinka'.", "works": [{"title": "Song without Words, Op. 11 No. 1", "key": "Unknown", "dur": "4 min", "link": "https://imslp.org/wiki/Song_without_Words,_Op.11_No.1_(Gnesin,_Mikhail)"}]}, {"name": "Moritz Moszkowski", "birth": 1854, "death": 1925, "country": "Germany", "bio": "German-Polish composer known for brilliant, effective salon virtuosity.", "works": [{"title": "15 \u00c9tudes de Virtuosit\u00e9, Op. 72", "key": "Various", "dur": "35 min", "link": "https://imslp.org/wiki/15_%C3%89tudes_de_Virtuosit%C3%A9,_Op.72_(Moszkowski,_Moritz)"}, {"title": "Caprice espagnol, Op. 37", "key": "A minor", "dur": "7 min", "link": "https://imslp.org/wiki/Caprice_espagnol,_Op.37_(Moszkowski,_Moritz)"}]}, {"name": "Paul Dukas", "birth": 1865, "death": 1935, "country": "France", "bio": "Best known for 'The Sorcerer's Apprentice,' but his Piano Sonata is a masterpiece of French pianism.", "works": [{"title": "Piano Sonata in E-flat minor", "key": "Eb Minor", "dur": "45 min", "link": "https://imslp.org/wiki/Piano_Sonata_(Dukas%2C_Paul)"}, {"title": "Variations on a Theme by Rameau", "key": "D Major", "dur": "20 min", "link": "https://imslp.org/wiki/Variations%2C_interlude_et_final_sur_un_th%C3%A8me_de_Rameau_(Dukas%2C_Paul)"}]}, {"name": "Salomon Jadassohn", "birth": 1831, "death": 1902, "country": "Germany", "bio": "Renowned theorist and teacher at the Leipzig Conservatory.", "works": [{"title": "Bal sc\u00e8ne, Op. 108", "key": "Unknown", "dur": "6 min", "link": "https://imslp.org/wiki/Bal_sc%C3%A8ne,_Op.108_(Jadassohn,_Salomon)"}, {"title": "Capriccio, Op. 86", "key": "Unknown", "dur": "5 min", "link": "https://imslp.org/wiki/Capriccio,_Op.86_(Jadassohn,_Salomon)"}]}, {"name": "Samuil Feinberg", "birth": 1890, "death": 1962, "country": "Russia", "bio": "Major pianist and composer known for his dense, Scriabinesque sonatas.", "works": [{"title": "Piano Sonata No. 1, Op. 1", "key": "A minor", "dur": "10 min", "link": "https://imslp.org/wiki/Piano_Sonata_No.1,_Op.1_(Feinberg,_Samuil)"}, {"title": "Piano Sonata No. 3, Op. 3", "key": "Unknown", "dur": "15 min", "link": "https://imslp.org/wiki/Piano_Sonata_No.3,_Op.3_(Feinberg,_Samuil)"}]}, {"name": "Samuil Maykapar", "birth": 1867, "death": 1938, "country": "Russia", "bio": "Known for brilliant children's music and pedagogical piano literature.", "works": [{"title": "Piano Sonata, Op. 19", "key": "Unknown", "dur": "20 min", "link": "https://imslp.org/wiki/Piano_Sonata,_Op.19_(Maykapar,_Samuil)"}, {"title": "Biriulki, Op. 28", "key": "Various", "dur": "25 min", "link": "https://imslp.org/wiki/Biriulki,_Op.28_(Maykapar,_Samuil)"}]}, {"name": "Victor Bendix", "birth": 1851, "death": 1926, "country": "Denmark", "bio": "Danish composer and pianist of Jewish descent; known for Romantic works.", "works": [{"title": "Complete Works Category", "key": "N/A", "dur": "N/A", "link": "https://imslp.org/wiki/Category:Bendix,_Victor"}, {"title": "Piano Sonata, Op. 26", "key": "G minor", "dur": "25 min", "link": "https://imslp.org/wiki/Category:Bendix,_Victor"}]}, {"name": "Viktor Ullmann", "birth": 1898, "death": 1944, "country": "Austria", "bio": "Theresienstadt composer murdered in Auschwitz. His final sonatas are masterpieces of defiance.", "works": [{"title": "Piano Sonata No. 7", "key": "Polytonal", "dur": "23 min", "link": "https://imslp.org/wiki/Piano_Sonata_No.7_(Ullmann,_Viktor)"}, {"title": "Piano Sonata No. 5", "key": "Polytonal", "dur": "17 min", "link": "https://imslp.org/wiki/Piano_Sonata_No.5,_Op.45_(Ullmann,_Viktor)"}]}, {"name": "Yuliya Veysberg", "birth": 1880, "death": 1942, "country": "Russia", "bio": "Russian composer of the Silver Age; perished during the Siege of Leningrad.", "works": [{"title": "3 Preludes", "key": "Various", "dur": "10 min", "link": "https://imslp.org/wiki/3_Preludes_(Veysberg,_Yuliya)"}]}, {"name": "\u00c9mile Waldteufel", "birth": 1837, "death": 1915, "country": "France", "bio": "Known for his waltzes, like 'The Skaters'.", "works": [{"title": "Les Patineurs, Op. 183", "key": "G major", "dur": "8 min", "link": "https://imslp.org/wiki/Les_Patineurs,_Op.183_(Waldteufel,_%C3%89mile)"}]}];
+
+    function switchView(view, btn) {
+        document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('view-' + view).classList.add('active');
+        btn.classList.add('active');
+        if(view === 'timeline') initTimeline();
+    }
+
+    function renderList(targetId, data) {
+        const grid = document.getElementById(targetId);
+        grid.innerHTML = '';
+        if(data.length === 0) {
+            grid.innerHTML = '<div style="text-align:center; grid-column:1/-1;">No composers found for this selection.</div>';
+            return;
+        }
+        
+        data.forEach(c => {
+            const works = c.works.map(w => `
+                <div class="work-item">
+                    <div>
+                        <span class="work-title">${w.title}</span><br>
+                        <small style="color:#64748b">${w.key} • ${w.dur}</small>
+                    </div>
+                    <a href="${w.link}" target="_blank" class="work-btn">Sheet Music</a>
+                </div>
+            `).join('');
+            
+            grid.innerHTML += `
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-name">${c.name}</h2>
+                        <span class="card-dates">${c.birth} – ${c.death} (${c.country})</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-bio">${c.bio}</p>
+                        ${works}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function filterList() {
+        const val = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = composers.filter(c => c.name.toLowerCase().includes(val) || c.bio.toLowerCase().includes(val));
+        renderList('listGrid', filtered);
+    }
+
+    function filterByCountry(country) {
+        document.getElementById('regionName').innerText = "Region: " + country;
+        const filtered = composers.filter(c => c.country === country);
+        renderList('mapGrid', filtered);
+    }
+
+    function filterByRegion(regions) {
+        document.getElementById('regionName').innerText = "Region: " + regions.join(', ');
+        const filtered = composers.filter(c => regions.includes(c.country));
+        renderList('mapGrid', filtered);
+    }
+
+    function initTimeline() {
+        const wrapper = document.getElementById('timelineWrapper');
+        const axis = document.getElementById('yearAxis');
+        
+        // Clear previous bars but keep axis
+        wrapper.querySelectorAll('.timeline-bar').forEach(e => e.remove());
+        
+        const start = 1790;
+        const end = 2005; // Extended to fit Ornstein
+        const range = end - start;
+
+        // Draw Axis if empty
+        if(axis.innerHTML === '') {
+            for(let yr = start; yr <= end; yr += 10) {
+                const mark = document.createElement('div');
+                mark.className = 'year-mark';
+                mark.style.left = ((yr - start) / range * 100) + '%';
+                mark.innerText = yr;
+                axis.appendChild(mark);
+            }
+        }
+
+        const sorted = [...composers].sort((a,b) => a.birth - b.birth);
+        
+        // Simple collision avoidance for vertical spacing
+        sorted.forEach((c, i) => {
+            const bar = document.createElement('div');
+            bar.className = 'timeline-bar';
+            
+            // Calculate position
+            const leftPct = ((c.birth - start) / range * 100);
+            const widthPct = ((c.death - c.birth) / range * 100);
+            
+            bar.style.left = leftPct + '%';
+            bar.style.width = widthPct + '%';
+            bar.style.top = (40 + (i * 24)) + 'px'; // 24px vertical spacing
+            
+            // Create label
+            const label = document.createElement('span');
+            label.className = 'timeline-bar-label';
+            label.innerText = c.name;
+            
+            // Append label to bar
+            bar.appendChild(label);
+            
+            bar.onclick = () => {
+                switchView('list', document.querySelectorAll('.nav-btn')[0]);
+                document.getElementById('searchInput').value = c.name;
+                filterList();
+            };
+            
+            wrapper.appendChild(bar);
+        });
+        
+        // Adjust container height based on number of items
+        wrapper.style.height = (80 + (sorted.length * 24)) + 'px';
+    }
+
+    // Init
+    renderList('listGrid', composers);
+</script>
+</body>
+</html>
