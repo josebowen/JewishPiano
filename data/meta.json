@@ -1,21 +1,21 @@
 {
  "built": "2026-09-16",
- "composers": 426,
- "leads": 572,
- "works": 6740,
+ "composers": 420,
+ "leads": 577,
+ "works": 6409,
  "work_sources": {
-  "Wikipedia": 335,
+  "Wikipedia": 333,
   "IMSLP": 2637,
   "IEMJ": 4,
-  "Catalogue": 2837,
+  "Catalogue": 2635,
   "Wikidata": 60,
-  "LexM": 840,
-  "Women at the Keys": 25,
+  "LexM": 714,
+  "Women at the Keys": 24,
   "Levande musikarv": 2
  },
  "connections": {
-  "Jewish": 362,
-  "Jewish-born; converted or raised Christian": 57,
+  "Jewish": 358,
+  "Jewish-born; converted or raised Christian": 55,
   "Non-Jewish; Jewish connection": 1,
   "Jewish descent (partial or ancestral)": 6
  }
