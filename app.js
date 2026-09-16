@@ -28,17 +28,21 @@
   };
   const TONICS = ['C', 'C-sharp', 'D-flat', 'D', 'D-sharp', 'E-flat', 'E', 'F', 'F-sharp', 'G-flat', 'G', 'G-sharp', 'A-flat', 'A', 'A-sharp', 'B-flat', 'B'];
   const PAGE = { cards: 60, table: 100 };
+  const THEMES = ['Jewish theme', 'Sacred / liturgical'];
+  const opNum = s => { const m = String(s || '').match(/(\d+)(?:\D+(\d+))?/); return m ? (+m[1]) * 1000 + (+(m[2] || 0)) : null; };
+  // detail-panel (single composer) state
+  const D = { id: '', q: '', themes: [], genre: '', tonic: '', mode: '', avail: '', src: '', sort: 'yr' };
 
   // ---------- state ----------
   const S = {
     tab: 'composers', view: 'cards', page: 1, sort: '',
     q: '', conn: [], primary: false, flags: [], themes: [], region: '', country: '', gender: '',
     bmin: '', bmax: '', genre: '', tonic: '', mode: '', dmin: '', dmax: '', hasdur: false, ymin: '', ymax: '',
-    avail: [], wsrc: [], lh: false, open: ''
+    avail: [], wsrc: [], wtheme: [], lh: false, open: '', cid: ''
   };
-  const ARR_KEYS = ['conn', 'flags', 'themes', 'avail', 'wsrc'];
+  const ARR_KEYS = ['conn', 'flags', 'themes', 'wtheme', 'avail', 'wsrc'];
   const BOOL_KEYS = ['primary', 'hasdur', 'lh'];
-  const STR_KEYS = ['q', 'region', 'country', 'gender', 'bmin', 'bmax', 'genre', 'tonic', 'mode', 'dmin', 'dmax', 'ymin', 'ymax', 'sort', 'view'];
+  const STR_KEYS = ['cid', 'q', 'region', 'country', 'gender', 'bmin', 'bmax', 'genre', 'tonic', 'mode', 'dmin', 'dmax', 'ymin', 'ymax', 'sort', 'view'];
 
   let DATA = null; // {composers, leads, works, byId, worksBy}
   let map = null, cluster = null;
@@ -102,7 +106,7 @@
       if (!DATA.worksBy.has(x.c)) DATA.worksBy.set(x.c, []);
       DATA.worksBy.get(x.c).push(x);
       const cc = DATA.byId.get(x.c);
-      x._s = norm([x.t, x.alt, x.op, x.key, x.note, x.ded, x.pub, cc && cc.name].join(' '));
+      x._s = norm([x.t, x.alt, x.op, x.key, x.note, x.ded, x.pub, x.mv, x.jt, (x.g || []).join(' '), cc && cc.name].join(' '));
     }
     for (const x of DATA.byId.values()) {
       const wt = (DATA.worksBy.get(x.id) || []).map(w => w.t).join(' ');
@@ -145,7 +149,9 @@
     $('#f-country').insertAdjacentHTML('beforeend', [...coc.keys()].sort((a, b) => a.localeCompare(b)).map(k => `<option value="${esc(k)}">${esc(k)} (${coc.get(k)})</option>`).join(''));
     const gc = countBy(all, x => x.gender);
     $('#f-gender').insertAdjacentHTML('beforeend', [...gc.keys()].sort().map(k => `<option value="${esc(k)}">${esc(k)} (${gc.get(k)})</option>`).join(''));
-    const gen = countBy(DATA.works, w => w.g);
+    const wt = countBy(DATA.works, w => (w.g || []).filter(g => THEMES.includes(g)));
+    checkList($('#f-wtheme'), THEMES.filter(t => wt.get(t)).map(t => ({ value: t, label: t, n: wt.get(t) })), 'wtheme');
+    const gen = countBy(DATA.works, w => (w.g || []).filter(g => !THEMES.includes(g)));
     $('#f-genre').insertAdjacentHTML('beforeend', [...gen.keys()].sort().map(k => `<option value="${esc(k)}">${esc(k)} (${nf(gen.get(k))})</option>`).join(''));
     const ton = countBy(DATA.works, w => w.ton);
     $('#f-tonic').insertAdjacentHTML('beforeend', TONICS.filter(t => ton.get(t)).map(t => `<option value="${t}">${t.replace('-sharp', '♯').replace('-flat', '♭')} (${ton.get(t)})</option>`).join(''));
@@ -223,7 +229,7 @@
   }
 
   // ---------- filtering ----------
-  const hasWorkFilters = () => !!(S.genre || S.tonic || S.mode || S.dmin || S.dmax || S.hasdur || S.ymin || S.ymax || S.avail.length || S.wsrc.length || S.lh);
+  const hasWorkFilters = () => !!(S.wtheme.length || S.genre || S.tonic || S.mode || S.dmin || S.dmax || S.hasdur || S.ymin || S.ymax || S.avail.length || S.wsrc.length || S.lh);
   function composerPass(c, useQ) {
     if (S.conn.length && !S.conn.includes(c.conn)) return false;
     if (S.primary && !c._primary) return false;
@@ -241,6 +247,7 @@
     return true;
   }
   function workPass(w) {
+    if (S.wtheme.length && !S.wtheme.some(t => (w.g || []).includes(t))) return false;
     if (S.genre && !(w.g || []).includes(S.genre)) return false;
     if (S.tonic && w.ton !== S.tonic) return false;
     if (S.mode === 'none' && w.ton) return false;
@@ -265,6 +272,7 @@
     return DATA.works.filter(w => {
       const c = DATA.byId.get(w.c);
       if (!c || !composerPass(c, false)) return false;
+      if (S.cid && w.c !== S.cid) return false;
       if (!workPass(w)) return false;
       if (terms.length && !terms.every(t => w._s.includes(t) || c._s.includes(t))) return false;
       return true;
@@ -275,10 +283,10 @@
   const SORTS = {
     composers: [['name', 'Name'], ['born', 'Birth year'], ['nworks', 'Number of works'], ['nfree', 'Free scores'], ['country', 'Country'], ['nsites', 'Wikipedia coverage']],
     leads: [['name', 'Name'], ['born', 'Birth year'], ['country', 'Country'], ['nsites', 'Wikipedia coverage']],
-    works: [['composer', 'Composer'], ['title', 'Title'], ['yr', 'Year'], ['dur', 'Duration'], ['key', 'Key'], ['avail', 'Availability']]
+    works: [['composer', 'Composer'], ['title', 'Title'], ['op', 'Opus'], ['yr', 'Year'], ['dur', 'Duration'], ['key', 'Key'], ['avail', 'Availability'], ['src', 'Source']]
   };
-  function sortList(list, kind) {
-    const [k, dir] = (S.sort || '').split(':');
+  function sortList(list, kind, sortStr) {
+    const [k, dir] = ((sortStr !== undefined ? sortStr : S.sort) || '').split(':');
     const d = dir === 'desc' ? -1 : 1;
     const nullLast = (a, b) => (a == null) - (b == null);
     const cmp = {
@@ -293,7 +301,9 @@
       yr: (a, b) => nullLast(a.yr, b.yr) || d * (a.yr - b.yr),
       dur: (a, b) => nullLast(a.dur, b.dur) || d * (a.dur - b.dur),
       key: (a, b) => nullLast(a.ton, b.ton) || d * (TONICS.indexOf(a.ton) - TONICS.indexOf(b.ton)) || (a.mode || '').localeCompare(b.mode || ''),
-      avail: (a, b) => d * (Object.keys(AVAIL).indexOf(a.avail) - Object.keys(AVAIL).indexOf(b.avail))
+      avail: (a, b) => d * (Object.keys(AVAIL).indexOf(a.avail) - Object.keys(AVAIL).indexOf(b.avail)),
+      op: (a, b) => nullLast(opNum(a.op), opNum(b.op)) || d * (opNum(a.op) - opNum(b.op)),
+      src: (a, b) => d * String(a.src).localeCompare(String(b.src)) || (a.yr || 9999) - (b.yr || 9999)
     };
     const def = kind === 'works' ? 'composer' : 'name';
     const f = cmp[k] || cmp[def];
@@ -340,6 +350,7 @@
   function renderChips() {
     const chips = [];
     const add = (k, v, label) => chips.push(`<span class="chip">${esc(label)}<button type="button" data-k="${k}" data-v="${esc(v)}" aria-label="Remove ${esc(label)}">×</button></span>`);
+    if (S.cid && S.tab === 'works') { const cc = DATA.byId.get(S.cid); add('cid', '', 'Composer: ' + (cc ? cc.name : S.cid)); }
     if (S.q) add('q', '', `Search: “${S.q}”`);
     S.conn.forEach(v => add('conn', v, v));
     if (S.primary) add('primary', '', 'Primary source only');
@@ -359,6 +370,7 @@
       if (S.hasdur) add('hasdur', '', 'Has duration');
       if (S.ymin) add('ymin', '', `Year ≥ ${S.ymin}`);
       if (S.ymax) add('ymax', '', `Year ≤ ${S.ymax}`);
+      S.wtheme.forEach(v => add('wtheme', v, v));
       S.avail.forEach(v => add('avail', v, AVAIL[v]));
       S.wsrc.forEach(v => add('wsrc', v, WSRC[v] || v));
       if (S.lh) add('lh', '', 'Left hand');
@@ -434,15 +446,23 @@
   }
   function durTxt(d) { if (d == null) return ''; if (d >= 60) return `${Math.floor(d / 60)} h ${Math.round(d % 60)} min`; return `${Math.round(d * 10) / 10} min`; }
   function keyTxt(w) { return (w.key || '').replace(/-sharp/g, '♯').replace(/-flat/g, '♭'); }
-  function worksTable(list, showComposer) {
-    return `<div class="table-wrap"><table><thead><tr>${showComposer ? th('Composer', 'composer') : ''}${th('Title', 'title')}<th>Opus</th>${th('Key', 'key')}${th('Duration', 'dur')}${th('Year', 'yr')}<th>Genre</th>${th('Availability', 'avail')}<th>Source</th></tr></thead><tbody>
+  function worksTable(list, showComposer, local) {
+    const TH = (label, key) => local ? thLocal(label, key) : th(label, key);
+    return `<div class="table-wrap"><table><thead><tr>${showComposer ? TH('Composer', 'composer') : ''}${TH('Title', 'title')}${TH('Opus', 'op')}${TH('Key', 'key')}${TH('Duration', 'dur')}${TH('Year', 'yr')}<th>Genre / theme</th>${TH('Availability', 'avail')}${TH('Source', 'src')}</tr></thead><tbody>
     ${list.map(w => {
       const c = DATA.byId.get(w.c);
       const note = [w.alt, w.note, w.ded ? 'Ded.: ' + w.ded : '', w.pub].filter(Boolean).join(' · ');
+      const themeTags = (w.g || []).filter(g => THEMES.includes(g)).map(g => `<span class="tag theme">${esc(g)}</span>`).join(' ');
+      const genres = (w.g || []).filter(g => !THEMES.includes(g)).join(', ');
       return `<tr>${showComposer ? `<td><button type="button" class="rowlink" data-open="${w.c}">${esc(c ? c.sort : w.c)}</button><span class="sub">${c ? esc(yrs(c)) : ''}</span></td>` : ''}
-      <td><a href="${esc(workLink(w, c))}" target="_blank" rel="noopener">${esc(w.t)}</a>${w.lh ? ' <span class="tag">left hand</span>' : ''}${note ? `<span class="sub">${esc(note.slice(0, 220))}</span>` : ''}</td>
-      <td>${esc(w.op || '')}</td><td>${esc(keyTxt(w))}</td><td class="num">${durTxt(w.dur)}</td><td class="num">${w.yr || ''}</td><td>${esc((w.g || []).join(', '))}</td><td>${availTag(w)}</td><td>${esc(w.src)}${w.ev > 1 ? `<span class="sub">${w.ev} catalogue entries</span>` : ''}</td></tr>`;
+      <td><a href="${esc(workLink(w, c))}" target="_blank" rel="noopener">${esc(w.t)}</a>${w.lh ? ' <span class="tag">left hand</span>' : ''}${note ? `<span class="sub">${esc(note.slice(0, 220))}</span>` : ''}${w.jt ? `<span class="sub evid">Theme evidence: ${esc(w.jt)}</span>` : ''}${local && w.mv ? `<details class="mv"><summary>Movements / contents</summary><span class="sub">${esc(w.mv)}</span></details>` : ''}</td>
+      <td>${esc(w.op || '')}</td><td>${esc(keyTxt(w))}</td><td class="num">${durTxt(w.dur)}</td><td class="num">${w.yr || ''}</td><td>${themeTags}${themeTags && genres ? '<br>' : ''}${esc(genres)}</td><td>${availTag(w)}</td><td>${esc(w.src)}${w.ev > 1 ? `<span class="sub">${w.ev} catalogue entries</span>` : ''}</td></tr>`;
     }).join('')}</tbody></table></div>`;
+  }
+  function thLocal(label, key) {
+    const [k, dir] = (D.sort || '').split(':');
+    const arrow = k === key ? (dir === 'desc' ? ' ↓' : ' ↑') : '';
+    return `<th><button type="button" data-dsort="${key}">${label}${arrow}</button></th>`;
   }
   function renderWorks() {
     const list = sortList(filteredWorks(), 'works');
@@ -495,19 +515,70 @@
           ${c._lead ? `<p class="meta"><b>Lead:</b> no solo piano work was found in the sources searched (IMSLP, LexM, the catalogue database, Wikidata, Wikipedia work lists in several languages). The catalogue links above are the next place to look.</p>` : ''}
         </div>
       </div>
-      ${ws.length ? `<div class="d-works">
-        <div class="d-works-tools"><h3 style="margin:0;font-family:var(--serif)">Solo piano works (${nf(ws.length)})</h3>
-        <input type="search" id="dq" placeholder="Filter these works…">
-        <a class="btn ghost" href="#/works?q=${enc(c.name)}">Open in Works tab</a></div>
-        <div id="dworks">${worksTable(ws, false)}</div></div>` : ''}`;
-    const dq = $('#dq');
-    if (dq) dq.addEventListener('input', () => {
-      const t = norm(dq.value);
-      $('#dworks').innerHTML = worksTable(ws.filter(w => w._s.includes(t)), false);
-    });
+      ${ws.length ? `<div class="d-works" id="dworksWrap"></div>` : ''}`;
+    if (ws.length) { if (D.id !== id) Object.assign(D, { id, q: '', themes: [], genre: '', tonic: '', mode: '', avail: '', src: '', sort: 'yr' }); renderDetailWorks(c, ws); }
     const dlg = $('#detail');
     if (!dlg.open) dlg.showModal();
     $('.dialog-inner').scrollTop = 0;
+  }
+  function renderDetailWorks(c, ws) {
+    const wrap = $('#dworksWrap');
+    const cnt = (f) => ws.filter(f).length;
+    const gen = countBy(ws, w => (w.g || []).filter(g => !THEMES.includes(g)));
+    const ton = countBy(ws, w => w.ton);
+    const av = countBy(ws, w => w.avail);
+    const sr = countBy(ws, w => w.src);
+    const opt = (m, cur, lab) => [...m.keys()].sort((x, y) => String(x).localeCompare(String(y))).map(k => `<option value="${esc(k)}" ${k === cur ? 'selected' : ''}>${esc(lab ? lab(k) : k)} (${m.get(k)})</option>`).join('');
+    const tonOpts = TONICS.filter(t => ton.get(t)).map(t => `<option value="${t}" ${t === D.tonic ? 'selected' : ''}>${t.replace('-sharp', '♯').replace('-flat', '♭')} (${ton.get(t)})</option>`).join('');
+    const themeBtn = t => { const n = cnt(w => (w.g || []).includes(t)); return `<button type="button" class="pill ${D.themes.includes(t) ? 'on' : ''}" data-dtheme="${esc(t)}" ${n ? '' : 'disabled'}>${esc(t)} <b>${n}</b></button>`; };
+    const sortOpts = [['yr', 'Year'], ['title', 'Title'], ['op', 'Opus'], ['key', 'Key'], ['dur', 'Duration'], ['avail', 'Availability'], ['src', 'Source']];
+    wrap.innerHTML = `
+      <div class="d-works-head"><h3>Solo piano works <span class="meta" id="dcount"></span></h3>
+        <div class="links"><a class="btn ghost" href="#/works?cid=${esc(c.id)}">Open in Works tab</a><button type="button" class="btn ghost" id="dcsv">Download CSV</button></div></div>
+      <div class="d-tools">
+        <input type="search" id="dq" placeholder="Search titles, movements, opus, notes…" value="${esc(D.q)}">
+        <div class="pills">${THEMES.map(themeBtn).join('')}</div>
+        <select id="dgenre" aria-label="Genre"><option value="">All genres</option>${opt(gen, D.genre)}</select>
+        <select id="dtonic" aria-label="Key"><option value="">Any key</option>${tonOpts}</select>
+        <select id="dmode" aria-label="Mode"><option value="">Major/minor</option><option value="major" ${D.mode === 'major' ? 'selected' : ''}>Major</option><option value="minor" ${D.mode === 'minor' ? 'selected' : ''}>Minor</option></select>
+        <select id="davail" aria-label="Availability"><option value="">Any availability</option>${opt(av, D.avail, k => AVAIL[k] || k)}</select>
+        <select id="dsrc" aria-label="Source"><option value="">All sources</option>${opt(sr, D.src, k => WSRC[k] || k)}</select>
+        <label class="inline">Sort <select id="dsort">${sortOpts.map(([v, l]) => `<option value="${v}" ${D.sort.split(':')[0] === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <button type="button" class="link-btn" id="dreset">Clear</button>
+      </div>
+      <div id="dworks"></div>`;
+    const apply = () => {
+      const terms = norm(D.q).split(/\s+/).filter(Boolean);
+      const list = ws.filter(w =>
+        (!terms.length || terms.every(t => w._s.includes(t))) &&
+        (!D.themes.length || D.themes.some(t => (w.g || []).includes(t))) &&
+        (!D.genre || (w.g || []).includes(D.genre)) &&
+        (!D.tonic || w.ton === D.tonic) && (!D.mode || w.mode === D.mode) &&
+        (!D.avail || w.avail === D.avail) && (!D.src || w.src === D.src));
+      const sorted = sortList(list, 'works', D.sort);
+      $('#dcount').textContent = list.length === ws.length ? `(${nf(ws.length)})` : `(${nf(list.length)} of ${nf(ws.length)})`;
+      $('#dworks').innerHTML = list.length ? worksTable(sorted, false, true) : '<p class="empty">No works match. Use “Clear” to reset.</p>';
+      wrap._list = sorted;
+    };
+    const on = (sel, ev, fn) => $(sel).addEventListener(ev, fn);
+    on('#dq', 'input', e => { D.q = e.target.value; apply(); });
+    ['genre', 'tonic', 'mode', 'avail', 'src'].forEach(k => on('#d' + k, 'change', e => { D[k] = e.target.value; apply(); }));
+    on('#dsort', 'change', e => { D.sort = e.target.value; apply(); });
+    on('#dreset', 'click', () => { Object.assign(D, { q: '', themes: [], genre: '', tonic: '', mode: '', avail: '', src: '', sort: 'yr' }); renderDetailWorks(c, ws); });
+    wrap.querySelector('.pills').onclick = e => {
+      const b = e.target.closest('[data-dtheme]'); if (!b) return;
+      const t = b.dataset.dtheme;
+      D.themes = D.themes.includes(t) ? D.themes.filter(x => x !== t) : D.themes.concat(t);
+      b.classList.toggle('on'); apply();
+    };
+    wrap.onclick = e => {
+      const b = e.target.closest('[data-dsort]'); if (!b) return;
+      e.stopPropagation();
+      const v = b.dataset.dsort; D.sort = D.sort === v ? v + ':desc' : v;
+      $('#dsort').value = v; apply();
+    };
+    on('#dcsv', 'click', () => exportWorksCSV(wrap._list || ws, 'jewish-piano-' + norm(c.sort).replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '') + '.csv'));
+    apply();
   }
   function closeDetail() { $('#detail').close(); }
 
@@ -597,6 +668,7 @@
         <li><b>“Converted or raised Christian”</b> can mean an adult conversion, a childhood baptism, or a Christian religion recorded in Wikidata. Read the linked sources before relying on the label.</li>
         <li><b>Catalogue records are publication evidence.</b> One work can appear under several title variants; the database’s solo/arrangement classification is heuristic, so a few songs or arrangements remain; and a name match can occasionally pick up a different person with the same name. Keys and durations are given only when IMSLP states them; nothing is estimated.</li>
         <li><b>Genre labels</b> are assigned from words in titles and from IMSLP tags, so they are approximate.</li>
+        <li><b>Work themes.</b> “Jewish theme” and “Sacred / liturgical” are assigned only when the work’s own text says so: its title, alternative title, the titles of its movements or numbers (from IMSLP), a file description, the dedication, or IMSLP’s notes. Example: Alkan’s 25 Préludes, Op. 31 are tagged because No. 6 is “Ancienne mélodie de la synagogue”. The matching text appears under the title as “Theme evidence”. A piece built on a Jewish melody whose title does not say so will not be tagged, so these filters find only part of the relevant repertoire. Composer names and publisher names (for example Israeli Music Publications) are ignored when matching.</li>
         <li><b>History flags.</b> “Holocaust victim” is shown only for composers who died 1939–45 and are recorded as victims in a Holocaust database or Wikipedia category, or who died in a camp or ghetto. “Survived Nazi imprisonment” marks composers in the Terezín Memorial database who survived; that database also lists political prisoners, so it does not count as evidence of Jewish identity on its own. “Persecuted under Nazism” means the composer has an entry in LexM or IMSLP’s list marks them as suppressed.</li>
         <li>Place names are the birthplaces recorded in Wikidata, shown with modern country names. IMSLP’s nationality field is shown on each profile where it exists.</li>
       </ul>
@@ -622,22 +694,28 @@
 
   // ---------- CSV ----------
   function csvCell(v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function worksRows(list) {
+    const rows = [['composer', 'born', 'died', 'country_of_birth', 'jewish_connection', 'title', 'alternative_title', 'opus', 'key', 'duration_min', 'year', 'genres_and_themes', 'theme_evidence', 'availability', 'record_source', 'url', 'notes']];
+    for (const w of list) { const c = DATA.byId.get(w.c); rows.push([c.sort, c.born, c.died, c.country, c.conn, w.t, w.alt, w.op, w.key, w.dur, w.yr, (w.g || []).join('; '), w.jt, AVAIL[w.avail], w.src, workLink(w, c), [w.note, w.pub, w.ded].filter(Boolean).join(' | ')]); }
+    return rows;
+  }
+  function exportWorksCSV(list, name) { saveCSV(worksRows(list), name); }
+  function saveCSV(rows, name) {
+    const blob = new Blob(['\ufeff' + rows.map(r => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
   function downloadCSV() {
     let rows, name;
     if (S.tab === 'works') {
-      const list = sortList(filteredWorks(), 'works');
-      rows = [['composer', 'born', 'died', 'country_of_birth', 'jewish_connection', 'title', 'alternative_title', 'opus', 'key', 'duration_min', 'year', 'genres', 'availability', 'record_source', 'url', 'notes']];
-      for (const w of list) { const c = DATA.byId.get(w.c); rows.push([c.sort, c.born, c.died, c.country, c.conn, w.t, w.alt, w.op, w.key, w.dur, w.yr, (w.g || []).join('; '), AVAIL[w.avail], w.src, workLink(w, c), [w.note, w.pub, w.ded].filter(Boolean).join(' | ')]); }
-      name = 'jewish-piano-works.csv';
+      return exportWorksCSV(sortList(filteredWorks(), 'works'), 'jewish-piano-works.csv');
     } else {
       const list = S.tab === 'leads' ? sortList(filteredLeads(), 'leads') : sortList(filteredComposers(), 'composers');
       rows = [['composer', 'born', 'died', 'birthplace', 'country_of_birth', 'region', 'gender', 'jewish_connection', 'flags', 'themes', 'works', 'free_scores', 'sources', 'wikipedia', 'wikidata', 'imslp', 'lexm']];
       for (const c of list) rows.push([c.sort, c.born, c.died, c.bplace, c.country, c.region, c.gender, c.conn, (c.flags || []).join('; '), (c.themes || []).join('; '), c.nworks, c.nfree, (c.sources || []).map(s => s.label + (s.url ? ' <' + s.url + '>' : '')).join(' | '), c.wp, c.wd, c.imslp, c.lexm]);
       name = S.tab === 'leads' ? 'jewish-piano-leads.csv' : 'jewish-piano-composers.csv';
     }
-    const blob = new Blob(['﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    saveCSV(rows, name);
   }
 })();

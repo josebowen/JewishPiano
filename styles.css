@@ -164,7 +164,20 @@ dialog::backdrop{background:rgba(15,18,26,.55)}
 .srclist .lvl.primary{background:var(--accent-soft);color:var(--accent)}
 .links{display:flex;gap:8px;flex-wrap:wrap}
 .links a{font-size:14px;border:1px solid var(--line);border-radius:8px;padding:4px 9px;text-decoration:none;background:var(--surface)}
-.d-works{margin-top:16px}
+.d-works{margin-top:18px}
+.d-works-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.d-works-head h3{margin:0;font-family:var(--serif);font-size:20px}
+.d-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;position:sticky;top:-22px;z-index:2}
+.d-tools input[type=search]{flex:1 1 240px;width:auto}
+.d-tools select{width:auto;max-width:210px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{border:1px solid var(--gold);color:var(--gold);background:transparent;border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13px}
+.pill b{font-weight:600;margin-left:3px}
+.pill.on{background:var(--gold);color:var(--surface)}
+.pill[disabled]{opacity:.4;cursor:default}
+.sub.evid{color:var(--gold)}
+details.mv summary{cursor:pointer;font-size:12px;color:var(--muted);margin-top:3px}
+th button[data-dsort]{background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;text-transform:inherit}
 .d-works-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .d-works-tools input{max-width:280px}
 
